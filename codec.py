@@ -2,10 +2,6 @@ import pickle
 import sys
 
 emojis = pickle.load(open('codebase/emojis.pcl', 'rb+'))
-input_string = ' '.join(sys.argv[1:]) #[ord(str(q)) for q in ' '.join(sys.argv[1:])]
-# chunk up string
-items = list()
-index = 00
 
 def base_encode(dec, base=512):
     if base <= 1:
@@ -34,25 +30,48 @@ def base_decode(based, base=512):
         register += 1
     return result
 
-return_list = list()
-padding = emojis[512]
-for ch in input_string:
-    base = 512
-    encoded = base_encode(ord(ch), base=base)
-    for code in encoded:
-        #print(code)
-        return_list.append(emojis[code])
-    return_list.append(padding)
+base = 512
+padding_character = emojis[512]
+padding_code = 512
+code_lengths = emojis[840:851]
 
-print(''.join(return_list))
-test_decode = list()
-decode_point = list()
-for code in return_list:
-    if emojis.index(code) == 512:
-        test_decode.append(chr(base_decode(decode_point)))
+def to_emoji(input_string):
+    return_list = list()
+    maxlen = 0
+    for ch in input_string:
+        encoded = base_encode(ord(ch), base=base)
+        return_list.append(encoded)
+        if encoded.__len__() > maxlen:
+            maxlen = encoded.__len__()
+    #print('to:', return_list)
+    return_st = list()
+    return_st.append(code_lengths[maxlen-1])
+    for codes in return_list:
+        strcodes = [emojis[q] for q in codes]
+        return_st.append(''.join(strcodes).rjust(maxlen, padding_character))
+    return ''.join(return_st)
+
+def from_emoji(input_emoji):
+    padlen = code_lengths.index(input_emoji[0])+1
+    input_emoji = input_emoji[1:]
+    if divmod(input_emoji.__len__(), padlen)[1] != 0:
+        raise Exception('Invalid code length character provided') # TODO: specific
+    it = input_emoji.__iter__()
+    decoded = list()
+    for code in range(int(input_emoji.__len__()/padlen)):
         decode_point = list()
-    else:
-        #print(emojis.index(code))
-        decode_point.append(emojis.index(code))
+        for iter_num in range(padlen):
+            code = it.__next__()
+            if code != padding_character:
+                decode_point.append(emojis.index(code))
+        #print('from:', decode_point)
+        decoded.append(base_decode(decode_point, base=base))
+    decoded = [chr(q) for q in decoded]
+    return ''.join(decoded)
 
-print(''.join(test_decode))
+if __name__ == '__main__':
+    input_string = ' '.join(sys.argv[1:])  # [ord(str(q)) for q in ' '.join(sys.argv[1:])]
+    encoded = to_emoji(input_string)
+    print(encoded)
+    decoded = from_emoji(encoded)
+    print(decoded)
